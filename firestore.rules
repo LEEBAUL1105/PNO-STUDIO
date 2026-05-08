@@ -1,0 +1,117 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isEmailVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        request.auth.token.email == 'ssoosooer@gmail.com' ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('isAdmin', false) == true)
+      );
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // --- Entity Validations ---
+    function isValidUser(data) {
+      return data.uid == request.auth.uid &&
+             data.email is string && data.email.size() <= 200 &&
+             data.displayName is string && data.displayName.size() <= 100;
+    }
+
+    function isValidService(data) {
+      return data.title is string && data.title.size() <= 100 &&
+             data.description is string && data.description.size() <= 1000 &&
+             data.price is number && data.price >= 0 &&
+             data.duration is number && data.duration > 0 &&
+             data.category in ['profile', 'body', 'concept', 'natural', 'rgb'];
+    }
+
+    function isValidBooking(data) {
+      return data.userId == request.auth.uid &&
+             data.serviceId is string && data.serviceId.size() <= 128 &&
+             data.serviceTitle is string && data.serviceTitle.size() <= 200 &&
+             data.date is string && data.date.size() <= 32 &&
+             data.timeSlot is string && data.timeSlot.size() <= 64 &&
+             data.status in ['pending', 'confirmed', 'cancelled', 'completed'] &&
+             data.userEmail is string && data.userEmail.size() <= 200 &&
+             data.userName is string && data.userName.size() <= 100 &&
+             data.userPhone is string && data.userPhone.size() <= 32 &&
+             data.bookingPurpose is string && data.bookingPurpose.size() <= 1000 &&
+             data.inquiry is string && data.inquiry.size() <= 2000 &&
+             data.createdAt is string && data.createdAt.size() <= 64 &&
+             data.keys().hasAll(['userId', 'serviceId', 'serviceTitle', 'date', 'timeSlot', 'status', 'userEmail', 'userName', 'userPhone', 'bookingPurpose', 'inquiry', 'createdAt']) &&
+             data.keys().size() == 12;
+    }
+
+    // --- Collections ---
+
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+      allow create: if isOwner(userId) && isValidUser(incoming()) && (
+        (incoming().get('isAdmin', false) == false) || 
+        (request.auth.token.email == 'ssoosooer@gmail.com' && incoming().get('isAdmin', false) == true)
+      );
+      allow update: if isOwner(userId) && isValidUser(incoming()) && 
+                    incoming().get('isAdmin', false) == existing().get('isAdmin', false);
+      allow update: if isAdmin();
+    }
+
+    match /services/{serviceId} {
+      allow read: if true;
+      allow write: if isAdmin() && isValidService(incoming());
+    }
+
+    match /portfolio/{itemId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /bookings/{bookingId} {
+      allow get: if isValidId(bookingId) && isSignedIn() && (isOwner(existing().userId) || isAdmin());
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+      
+      allow create: if isValidId(bookingId) && isEmailVerified() && isValidBooking(incoming()) && 
+                    incoming().status == 'pending';
+      
+      allow update: if isValidId(bookingId) && isSignedIn() && (
+        // User cancelling their own booking
+        (isOwner(existing().userId) && 
+         incoming().status == 'cancelled' && 
+         incoming().diff(existing()).affectedKeys().hasOnly(['status'])) ||
+        // Admin updates
+        (isAdmin() && isValidBooking(incoming()))
+      );
+      
+      allow delete: if isValidId(bookingId) && isAdmin();
+    }
+  }
+}

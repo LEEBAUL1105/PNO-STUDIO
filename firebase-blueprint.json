@@ -1,0 +1,79 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "isAdmin": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email"]
+    },
+    "Service": {
+      "title": "Service",
+      "description": "Photography service packages",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "type": "number" },
+        "duration": { "type": "number", "description": "Duration in minutes" },
+        "category": { "type": "string", "enum": ["profile", "body", "concept", "natural", "rgb"] },
+        "imageUrl": { "type": "string" }
+      },
+      "required": ["title", "price", "category"]
+    },
+    "Booking": {
+      "title": "Booking",
+      "description": "Customer reservations",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "serviceId": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "timeSlot": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "confirmed", "cancelled", "completed"] },
+        "userEmail": { "type": "string" },
+        "userName": { "type": "string" },
+        "userPhone": { "type": "string" },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "finishedPhotoUrl": { "type": "string" }
+      },
+      "required": ["userId", "serviceId", "date", "timeSlot", "status"]
+    },
+    "PortfolioItem": {
+      "title": "Portfolio Item",
+      "description": "Showcase photographs",
+      "type": "object",
+      "properties": {
+        "category": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "title": { "type": "string" }
+      },
+      "required": ["category", "imageUrl"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "services/{serviceId}": {
+      "schema": "Service",
+      "description": "Available photography services"
+    },
+    "bookings/{bookingId}": {
+      "schema": "Booking",
+      "description": "Photography sessions"
+    },
+    "portfolio/{itemId}": {
+      "schema": "PortfolioItem",
+      "description": "Gallery items"
+    }
+  }
+}

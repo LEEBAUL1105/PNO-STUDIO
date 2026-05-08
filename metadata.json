@@ -1,0 +1,10 @@
+{
+  "name": "pno",
+  "description": "Premium portrait photography studio focusing on discovering your best self through high-end visual experiences.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ],
+  "majorCapabilities": []
+}
